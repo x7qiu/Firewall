@@ -1,0 +1,9 @@
+sudo insmod netfilter.ko
+lsmod | grep netfilter
+sudo rmmod netfilter.ko
+dmesg
+
+For the host to ping VM, set VM network mode to "Bridge" instead of NAT.
+
+NAT mode: mask all network activity as if it comes from Host OS
+Bridge: VM act like another computer on the local network

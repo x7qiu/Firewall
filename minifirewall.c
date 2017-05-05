@@ -7,6 +7,7 @@
 #include <linux/tcp.h>  // struct tcphdr
 #include <linux/udp.h>  // struct udphdr
 #include <linux/netfilter_ipv4.h>   // hooknum
+//#include <linux/string.h>			// 
 //#include <netinet/in.h>
 
 MODULE_LICENSE("GPL");
@@ -32,55 +33,42 @@ unsigned int my_input_fn(void* priv, struct sk_buff* skb, const struct nf_hook_s
     struct iphdr*   ip_header;
     struct tcphdr*  tcp_header;
     struct udphdr*  udp_header;
-    unsigned int    sport, dport;
-    unsigned int  	saddr, daddr;
+    uint16_t    sport, dport;
+    //unsigned int  	saddr, daddr;
     
-/* 
-	// this line always triggers; not sure what's wrong
-    if (skb){
-    	printk(KERN_DEBUG "No sock_buff.\n");
-        return NF_ACCEPT;
-	}
-*/
 
-	// packets may not reach L4
-    //ip_header = (struct iphdr*)skb_network_header(sock_buff);
     ip_header = (struct iphdr*)skb_network_header(skb);
     if (!ip_header){
     	printk(KERN_DEBUG "Failed to intercept packet.\n");
-        return NF_ACCEPT;
-	}
-	saddr = (unsigned int)ip_header->saddr;
-	daddr = (unsigned int)ip_header->daddr;
-
-	if (ip_header->protocol == IPPROTO_ICMP){
-		printk(KERN_DEBUG "ICMP packet detected and dropped");
-		return NF_DROP;
 	}
 
-    if (ip_header->protocol == IPPROTO_TCP){
-        tcp_header = (struct tcphdr*)skb_transport_header(skb);
-    	printk(KERN_DEBUG "TCP traffic incoming.\n");
+	switch(ip_header->protocol){
+		case IPPROTO_ICMP:
+			printk(KERN_DEBUG "ICMP packet detected and dropped");
+			return NF_DROP;
+			break;
+		case IPPROTO_TCP:
+    		printk(KERN_DEBUG "TCP traffic incoming.\n");
+        	tcp_header = (struct tcphdr*)skb_transport_header(skb);
+			sport = (unsigned int)ntohs(tcp_header->source);
+			dport = (unsigned int)ntohs(tcp_header->dest);
+  			//printk("SOURCE port = %pI4,  DEST = %pI4\n", &saddr, &daddr);
+  			printk("SOURCE port = %u,  DEST = %u\n", sport, dport);
+			return NF_ACCEPT;
+			break;
+		case IPPROTO_UDP:
+    		printk(KERN_DEBUG "UDP traffic incoming.\n");
+        	udp_header = (struct udphdr*)skb_transport_header(skb);
 
-		sport = (unsigned int)tcp_header->source;
-		dport = (unsigned int)tcp_header->dest;
-  		printk("SOURCE port = %pI4,  DEST = %pI4\n", &saddr, &daddr);
-  		printk("SOURCE IP address = %pI4,  DEST = %pI4\n", &sport, &dport);
-        //snprintf(sport, 16, "%pI4", &tcp_header->source);
-        //snprintf(dport, 16, "%pI4", &tcp_header->dest);
-    }
-
-    if (ip_header->protocol == IPPROTO_UDP){
-        udp_header = (struct udphdr*)skb_transport_header(skb);
-    	printk(KERN_DEBUG "UDP traffic incoming.\n");
-
-		sport = (unsigned int)udp_header->source;
-		dport = (unsigned int)udp_header->dest;
-  		printk("SOURCE port = %pI4,  DEST = %pI4\n", &saddr, &daddr);
-  		printk("SOURCE IP address = %pI4,  DEST = %pI4\n", &sport, &dport);
-        //snprintf(sport, 16, "%pI4", &udp_header->source);
-        //snprintf(dport, 16, "%pI4", &udp_header->dest);
-    }
+			sport = (unsigned int)udp_header->source;
+			dport = (unsigned int)udp_header->dest;
+  			//printk("SOURCE port = %pI4,  DEST = %pI4\n", &saddr, &daddr);
+  			printk("SOURCE port = %u,  DEST = %u\n", sport, dport);
+			return NF_ACCEPT;
+			break;
+		default:
+			return NF_DROP;
+	}
 
     return NF_DROP;
 }
@@ -88,7 +76,6 @@ unsigned int my_input_fn(void* priv, struct sk_buff* skb, const struct nf_hook_s
 
 int init_module(){
     my_input_filter.hook       = (nf_hookfn*)my_input_fn;
-    //my_input_filter.owner      = THIS_MODULE; // no longer this member field
     my_input_filter.pf         = PF_INET;
     my_input_filter.hooknum    = NF_INET_PRE_ROUTING;
     my_input_filter.priority   = NF_IP_PRI_FIRST;
