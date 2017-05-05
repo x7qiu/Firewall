@@ -3,7 +3,8 @@ lsmod | grep netfilter
 sudo rmmod netfilter.ko
 dmesg
 
-For the host to ping VM, set VM network mode to "Bridge" instead of NAT.
 
 NAT mode: mask all network activity as if it comes from Host OS
 Bridge: VM act like another computer on the local network
+
+After setting VM network to Bridge mode, VM get its own IP and it can be pinged by from Host OS, and the wireshark on Host OS can capture and filter packets by VM IP.
